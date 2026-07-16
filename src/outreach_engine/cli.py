@@ -278,6 +278,33 @@ def cmd_present(args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
+def cmd_live(args: argparse.Namespace) -> int:
+    """Working-model live sim for screen-share — activity stream in Discord."""
+    from .live_sim import LiveSim
+
+    live = not args.dry_run
+    print(
+        "\n"
+        "══════════════════════════════════════════════\n"
+        "  LIVE WORKING MODEL — screen-share Discord\n"
+        "  Open: Dank AI → #outreach-handoffs\n"
+        "  Ignore this terminal. Watch the channel.\n"
+        f"  pace={args.pace}s between events · live={live}\n"
+        "══════════════════════════════════════════════\n"
+    )
+    sim = LiveSim(live=live)
+    if not sim.notifier.diagnose()["discord"]["ready"]:
+        print(
+            "Discord not configured. Set DISCORD_HANDOFF_WEBHOOK_URL in /opt/data/.env",
+            file=sys.stderr,
+        )
+        return 2
+    result = sim.run(pace=float(args.pace))
+    print(json.dumps(result, indent=2))
+    print("\n✅ Live sim finished. Scroll #outreach-handoffs for the full run.")
+    return 0 if result.get("ok") else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="outreach_engine",
@@ -347,6 +374,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Seconds between Discord posts (default 1.2)",
     )
     sp.set_defaults(func=cmd_present)
+
+    sp = sub.add_parser(
+        "live",
+        help="WORKING MODEL screen-share: live activity stream in Discord (not slides)",
+    )
+    sp.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Don't post to Discord",
+    )
+    sp.add_argument(
+        "--pace",
+        type=float,
+        default=2.5,
+        help="Seconds between live events (default 2.5; use 3.5 if talking)",
+    )
+    sp.set_defaults(func=cmd_live)
 
     return p
 
