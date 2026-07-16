@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -312,6 +313,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    # Auto-load Discord/Twilio/etc secrets from host/container .env files
+    from .env_load import load_env_files
+    from .store import find_repo_root
+
+    loaded = load_env_files(find_repo_root())
+    if loaded and os.environ.get("OUTREACH_DEBUG_ENV"):
+        print(f"[env] loaded from: {', '.join(loaded)}", file=sys.stderr)
+
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

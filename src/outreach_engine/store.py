@@ -75,36 +75,51 @@ class JsonStore:
 
     # ----- config -----
     def load_config(self) -> dict[str, Any]:
+        # Ensure secrets from .env are visible to notifiers/channels
+        try:
+            from .env_load import load_env_files
+
+            load_env_files(self.repo_root)
+        except Exception:
+            pass
+
         path = self.config_path
-        if not path.exists():
-            return {}
+        cfg: dict[str, Any] = {}
+        if path.exists():
+            cfg = self._load_yaml_file(path)
+
+        # Optional local overrides (gitignored): config/local.yaml
+        local = self.repo_root / "config" / "local.yaml"
+        if local.exists():
+            local_cfg = self._load_yaml_file(local)
+            cfg = _deep_merge(cfg, local_cfg)
+        return cfg
+
+    def _load_yaml_file(self, path: Path) -> dict[str, Any]:
         try:
             import yaml  # type: ignore
+
+            with path.open("r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
         except ImportError:
-            # minimal YAML subset via json if pure-yaml not available — try stdlib fallback
             text = path.read_text(encoding="utf-8")
-            # attempt simple load with yaml if present, else use a tiny parser path
-            try:
-                import yaml as _y  # noqa
-                return _y.safe_load(text) or {}
-            except ImportError:
-                return self._parse_simple_yaml(text)
-        with path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            return self._parse_simple_yaml(text)
+        except Exception:
+            text = path.read_text(encoding="utf-8")
+            return self._parse_simple_yaml(text)
 
     @staticmethod
     def _parse_simple_yaml(text: str) -> dict[str, Any]:
         """Very small YAML subset for dry-run without PyYAML (indent-based maps/lists)."""
         try:
             import yaml  # type: ignore
+
             return yaml.safe_load(text) or {}
         except ImportError:
             pass
-        # Prefer json if someone swapped extension; else return empty and rely on code defaults
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # Use a minimal recursive descent for the config we ship
             return _minimal_yaml_load(text)
 
     # ----- leads -----
@@ -179,6 +194,17 @@ class JsonStore:
                 p.unlink()
         self.save_leads([])
         self.save_state({"virtual_now": None, "tick_count": 0})
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge override into base (override wins)."""
+    out: dict[str, Any] = dict(base or {})
+    for k, v in (override or {}).items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
 
 
 def _minimal_yaml_load(text: str) -> dict[str, Any]:
