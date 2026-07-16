@@ -1,0 +1,242 @@
+"""CLI entry for hermes-outreach-engine.
+
+Usage:
+  PYTHONPATH=src python -m outreach_engine.cli <command>
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any, Optional
+
+from .runner import OutreachRunner
+from .store import JsonStore, find_repo_root
+
+
+DEFAULT_YAML = """# Hermes Outreach Engine — default config
+# dry_run is TRUE by default: no live email/SMS/calls.
+
+dry_run: true
+
+sender:
+  name: Alex
+  from_email: outreach@example.com
+
+channels:
+  email:
+    enabled: true
+    dry_run: true
+  sms:
+    enabled: true
+    dry_run: true
+  call:
+    enabled: true
+    dry_run: true
+
+scoring:
+  weights:
+    email_opened: 1
+    email_replied: 15
+    sms_replied: 12
+    call_interest: 20
+    booked_call: 25
+    asked_pricing: 18
+    visited_discord_invite: 10
+    explicit_demo_request: 22
+    interest_keywords: 12
+    hostile: -50
+    opt_out: 0
+  stages:
+    cold: [0, 9]
+    warm: [10, 24]
+    hot: [25, 49]
+    qualified: [50, null]
+
+handoff:
+  min_score: 40
+  stages:
+    - hot
+    - qualified
+  signals_any:
+    - booked_call
+    - asked_pricing
+    - explicit_demo_request
+    - call_interest
+    - interest_keywords
+  block_on_opt_out: true
+  block_on_hostile: false
+
+sequence:
+  id: crypto_discord_default
+
+model:
+  primary: xai/grok
+  fallback: openrouter
+"""
+
+
+def _runner(dry_run: Optional[bool] = None) -> OutreachRunner:
+    store = JsonStore(repo_root=find_repo_root())
+    return OutreachRunner(store=store, dry_run=dry_run)
+
+
+def cmd_init(_args: argparse.Namespace) -> int:
+    store = JsonStore(repo_root=find_repo_root())
+    store.ensure_dirs()
+    cfg = store.config_path
+    if not cfg.exists():
+        cfg.write_text(DEFAULT_YAML, encoding="utf-8")
+        print(f"Wrote {cfg}")
+    else:
+        print(f"Config already exists: {cfg}")
+    r = OutreachRunner(store=store)
+    info = r.init()
+    print(json.dumps(info, indent=2))
+    print("Init complete (dry_run default true).")
+    return 0
+
+
+def cmd_import_leads(args: argparse.Namespace) -> int:
+    r = _runner()
+    n = r.import_leads(args.path)
+    print(f"Imported {n} leads from {args.path}")
+    return 0
+
+
+def cmd_list_leads(_args: argparse.Namespace) -> int:
+    r = _runner()
+    leads = r.list_leads()
+    if not leads:
+        print("No leads.")
+        return 0
+    for lead in leads:
+        print(
+            f"{lead.id:16} {lead.full_name:24} {lead.email:32} "
+            f"score={lead.score:3} stage={lead.stage:10} status={lead.status:12} "
+            f"touches={lead.touches} next={lead.next_touch_at}"
+        )
+    print(f"Total: {len(leads)}")
+    return 0
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    r = _runner()
+    lead = r.score_lead(args.lead_id)
+    print(json.dumps(lead.to_dict(), indent=2))
+    return 0
+
+
+def cmd_tick(args: argparse.Namespace) -> int:
+    dry = True if args.dry_run or not getattr(args, "live", False) else False
+    # --dry-run flag forces true; default from config is true
+    r = _runner(dry_run=True if args.dry_run else None)
+    if args.dry_run:
+        r.dry_run = True
+    summary = r.tick(dry_run=r.dry_run)
+    print(json.dumps({k: v for k, v in summary.items() if k != "details"}, indent=2))
+    for d in summary.get("details") or []:
+        print(f"  {d}")
+    return 0
+
+
+def cmd_simulate_reply(args: argparse.Namespace) -> int:
+    r = _runner()
+    result = r.simulate_reply(args.lead_id, args.text)
+    print(json.dumps({
+        "lead_id": result["lead"]["id"],
+        "score": result["lead"]["score"],
+        "stage": result["lead"]["stage"],
+        "status": result["lead"]["status"],
+        "signals": result["signals"],
+        "handoff": result["handoff"],
+    }, indent=2))
+    return 0
+
+
+def cmd_handoffs(_args: argparse.Namespace) -> int:
+    r = _runner()
+    rows = r.list_handoffs()
+    if not rows:
+        print("No handoffs.")
+        return 0
+    for h in rows:
+        print(
+            f"{h.get('created_at')} | {h.get('name')} <{h.get('email')}> "
+            f"score={h.get('score')} stage={h.get('stage')} reasons={h.get('reasons')}"
+        )
+    print(f"Total pending/recorded: {len(rows)}")
+    return 0
+
+
+def cmd_demo(_args: argparse.Namespace) -> int:
+    # ensure config exists
+    store = JsonStore(repo_root=find_repo_root())
+    store.ensure_dirs()
+    if not store.config_path.exists():
+        store.config_path.write_text(DEFAULT_YAML, encoding="utf-8")
+    r = OutreachRunner(store=store, dry_run=True)
+    result = r.demo()
+    print(json.dumps({"ok": result["ok"], "handoff_count": len(result["handoffs"])}, indent=2))
+    return 0 if result.get("ok") else 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="outreach_engine",
+        description="Hermes Outreach Engine — dry-run-first multi-touch outreach for crypto Discord ICP",
+    )
+    sub = p.add_subparsers(dest="command", required=True)
+
+    sp = sub.add_parser("init", help="Seed data dir + default config")
+    sp.set_defaults(func=cmd_init)
+
+    sp = sub.add_parser("import-leads", help="Import leads from CSV or JSON")
+    sp.add_argument("path", help="Path to leads.csv or leads.json")
+    sp.set_defaults(func=cmd_import_leads)
+
+    sp = sub.add_parser("list-leads", help="List leads in the store")
+    sp.set_defaults(func=cmd_list_leads)
+
+    sp = sub.add_parser("score", help="Rescore a lead")
+    sp.add_argument("lead_id")
+    sp.set_defaults(func=cmd_score)
+
+    sp = sub.add_parser("tick", help="Process due sequence steps")
+    sp.add_argument("--dry-run", action="store_true", default=False, help="Force dry-run mode")
+    sp.set_defaults(func=cmd_tick)
+
+    sp = sub.add_parser("simulate-reply", help="Inject inbound reply text")
+    sp.add_argument("lead_id")
+    sp.add_argument("text")
+    sp.set_defaults(func=cmd_simulate_reply)
+
+    sp = sub.add_parser("handoffs", help="List recorded handoffs")
+    sp.set_defaults(func=cmd_handoffs)
+
+    sp = sub.add_parser("demo", help="Full canned end-to-end dry-run demo")
+    sp.set_defaults(func=cmd_demo)
+
+    return p
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return int(args.func(args))
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    except KeyError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    except Exception as e:  # noqa: BLE001 — CLI boundary
+        print(f"Error: {type(e).__name__}: {e}", file=sys.stderr)
+        raise
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,59 @@
+# Hermes Outreach Engine — default config
+# dry_run is TRUE by default: no live email/SMS/calls.
+
+dry_run: true
+
+sender:
+  name: Alex
+  from_email: outreach@example.com
+
+channels:
+  email:
+    enabled: true
+    dry_run: true
+  sms:
+    enabled: true
+    dry_run: true
+  call:
+    enabled: true
+    dry_run: true
+
+scoring:
+  weights:
+    email_opened: 1
+    email_replied: 15
+    sms_replied: 12
+    call_interest: 20
+    booked_call: 25
+    asked_pricing: 18
+    visited_discord_invite: 10
+    explicit_demo_request: 22
+    interest_keywords: 12
+    hostile: -50
+    opt_out: 0
+  stages:
+    cold: [0, 9]
+    warm: [10, 24]
+    hot: [25, 49]
+    qualified: [50, null]
+
+handoff:
+  min_score: 40
+  stages:
+    - hot
+    - qualified
+  signals_any:
+    - booked_call
+    - asked_pricing
+    - explicit_demo_request
+    - call_interest
+    - interest_keywords
+  block_on_opt_out: true
+  block_on_hostile: false
+
+sequence:
+  id: crypto_discord_default
+
+model:
+  primary: xai/grok
+  fallback: openrouter
