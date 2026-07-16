@@ -256,6 +256,28 @@ def cmd_demo(_args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
+def cmd_present(args: argparse.Namespace) -> int:
+    """Discord-first meeting presentation — friend watches the channel, not the terminal."""
+    from .present import DiscordPresenter
+
+    live = not args.dry_run
+    print(
+        "PRESENT MODE — look at Discord #outreach-handoffs (not this terminal).\n"
+        f"live_posts={live}\n"
+    )
+    presenter = DiscordPresenter(live=live)
+    if not presenter.notifier.diagnose()["discord"]["ready"]:
+        print(
+            "Discord not configured. Set DISCORD_HANDOFF_WEBHOOK_URL in /opt/data/.env",
+            file=sys.stderr,
+        )
+        return 2
+    result = presenter.run(pause=float(args.pause))
+    print(json.dumps(result, indent=2))
+    print("\n✅ Done. Switch to Discord #outreach-handoffs and walk top → bottom.")
+    return 0 if result.get("ok") else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="outreach_engine",
@@ -308,6 +330,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("demo", help="Full canned end-to-end dry-run demo")
     sp.set_defaults(func=cmd_demo)
+
+    sp = sub.add_parser(
+        "present",
+        help="Discord-first meeting demo — posts the story into #outreach-handoffs",
+    )
+    sp.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Don't post to Discord (print only)",
+    )
+    sp.add_argument(
+        "--pause",
+        type=float,
+        default=1.2,
+        help="Seconds between Discord posts (default 1.2)",
+    )
+    sp.set_defaults(func=cmd_present)
 
     return p
 

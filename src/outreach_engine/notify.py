@@ -334,3 +334,37 @@ class HandoffNotifier:
             },
             "generic_webhook": bool(self.generic_webhook),
         }
+
+    def post_discord(
+        self,
+        content: str = "",
+        embeds: Optional[list[dict[str, Any]]] = None,
+    ) -> str:
+        """Post a freeform Discord message (presentation / status cards)."""
+        payload: dict[str, Any] = {
+            "allowed_mentions": {"parse": []},
+        }
+        if content:
+            payload["content"] = content[:2000]
+        if embeds:
+            payload["embeds"] = embeds[:10]
+
+        if self.discord_dry_run:
+            print(f"[HandoffNotifier] DRY-RUN Discord post: {content[:100]}")
+            return "dry_run"
+
+        if self.discord_webhook:
+            return self._post_json(self.discord_webhook, payload, label="discord_webhook")
+
+        if self.discord_bot_token and self.discord_channel_id:
+            url = f"https://discord.com/api/v10/channels/{self.discord_channel_id}/messages"
+            return self._post_json(
+                url,
+                payload,
+                label="discord_bot",
+                headers={
+                    "Authorization": f"Bot {self.discord_bot_token}",
+                    "Content-Type": "application/json",
+                },
+            )
+        return "skipped: discord not configured"
