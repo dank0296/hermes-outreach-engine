@@ -72,6 +72,18 @@ handoff:
 sequence:
   id: crypto_discord_default
 
+notify:
+  primary: discord
+  dry_run: true
+  discord:
+    enabled: true
+    dry_run: true
+  telegram:
+    enabled: false
+    dry_run: true
+  webhook:
+    dry_run: true
+
 model:
   primary: xai/grok
   fallback: openrouter
@@ -171,6 +183,66 @@ def cmd_handoffs(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_notify_diagnose(_args: argparse.Namespace) -> int:
+    r = _runner()
+    print(json.dumps(r.notifier.diagnose(), indent=2))
+    return 0
+
+
+def cmd_notify_test(args: argparse.Namespace) -> int:
+    """Send (or dry-run) a sample Discord handoff embed."""
+    from .models import Lead
+    from .notify import HandoffNotifier
+
+    store = JsonStore(repo_root=find_repo_root())
+    store.ensure_dirs()
+    config = store.load_config()
+    notify = config.setdefault("notify", {})
+    notify["primary"] = "discord"
+    discord = notify.setdefault("discord", {})
+    discord["enabled"] = True
+    if args.live:
+        notify["dry_run"] = False
+        discord["dry_run"] = False
+        print("LIVE Discord notify requested.")
+    else:
+        notify["dry_run"] = True
+        discord["dry_run"] = True
+        print("Dry-run notify test (use --live to actually post to Discord).")
+
+    notifier = HandoffNotifier(store, config=config, dry_run=not args.live)
+    lead = Lead(
+        id="lead_notify_test",
+        email="demo+handoff@example.com",
+        first_name="Demo",
+        last_name="Handoff",
+        phone="+15550001111",
+        company="Demo Prop Desk",
+        title="Trader",
+        score=93,
+        stage="qualified",
+        signals=["email_replied", "asked_pricing", "booked_call", "interest_keywords"],
+        touches=2,
+    )
+    record = notifier.notify(
+        lead,
+        reasons=[
+            "score>=40 (score=93)",
+            "stage=qualified",
+            "signal:asked_pricing",
+            "signal:booked_call",
+            "notify-test",
+        ],
+    )
+    print(
+        json.dumps(
+            {"deliveries": record.get("deliveries"), "diagnose": notifier.diagnose()},
+            indent=2,
+        )
+    )
+    return 0
+
+
 def cmd_demo(_args: argparse.Namespace) -> int:
     # ensure config exists
     store = JsonStore(repo_root=find_repo_root())
@@ -215,6 +287,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("handoffs", help="List recorded handoffs")
     sp.set_defaults(func=cmd_handoffs)
+
+    sp = sub.add_parser(
+        "notify-diagnose",
+        help="Show Discord/Telegram handoff config readiness",
+    )
+    sp.set_defaults(func=cmd_notify_diagnose)
+
+    sp = sub.add_parser(
+        "notify-test",
+        help="Post a sample handoff to Discord (dry-run unless --live)",
+    )
+    sp.add_argument(
+        "--live",
+        action="store_true",
+        help="Actually post to Discord (requires webhook or bot+channel)",
+    )
+    sp.set_defaults(func=cmd_notify_test)
 
     sp = sub.add_parser("demo", help="Full canned end-to-end dry-run demo")
     sp.set_defaults(func=cmd_demo)

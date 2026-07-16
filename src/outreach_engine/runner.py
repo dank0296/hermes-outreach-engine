@@ -56,7 +56,7 @@ class OutreachRunner:
         self.channels: dict[str, BaseChannel] = build_channels(self.config, dry_run=self.dry_run)
         sender = (self.config.get("sender") or {})
         self.sender_name = sender.get("name") or self.config.get("sender_name") or "Alex"
-        self.notifier = HandoffNotifier(self.store, dry_run=self.dry_run)
+        self.notifier = HandoffNotifier(self.store, config=self.config, dry_run=self.dry_run)
 
     # ----- clock -----
     def now(self) -> datetime:

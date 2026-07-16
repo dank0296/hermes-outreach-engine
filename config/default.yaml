@@ -54,6 +54,28 @@ handoff:
 sequence:
   id: crypto_discord_default
 
+# Owner notifications when a lead meets handoff criteria.
+# Discord is primary (friend may not use Telegram).
+# notify.dry_run can be false while channels stay dry_run — useful for live demo pings.
+notify:
+  primary: discord
+  dry_run: true
+  discord:
+    enabled: true
+    dry_run: true
+    # Prefer a channel webhook (easiest for meeting demo):
+    # webhook_url: https://discord.com/api/webhooks/...
+    # Or bot post:
+    # channel_id: "1234567890"
+    # bot token from env DISCORD_BOT_TOKEN / DISCORD_HANDOFF_BOT_TOKEN
+  telegram:
+    enabled: false
+    dry_run: true
+    # chat_id from env TELEGRAM_HANDOFF_CHAT_ID
+  webhook:
+    dry_run: true
+    # url: optional generic JSON webhook
+
 model:
   primary: xai/grok
   fallback: openrouter
