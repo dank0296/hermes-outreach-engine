@@ -305,6 +305,73 @@ def cmd_live(args: argparse.Namespace) -> int:
     return 0 if result.get("ok") else 1
 
 
+def cmd_step(args: argparse.Namespace) -> int:
+    """Interactive slideshow-style live sim — YOU advance each card."""
+    from .live_sim import LiveSim
+
+    sim = LiveSim(live=not args.dry_run)
+    if not sim.notifier.diagnose()["discord"]["ready"] and not args.dry_run:
+        print("Discord not configured.", file=sys.stderr)
+        return 2
+    action = args.action
+    if action == "start":
+        result = sim.step_start()
+    elif action == "next":
+        result = sim.step_next()
+    elif action == "status":
+        result = sim.step_status()
+    elif action == "reset":
+        result = sim.step_reset()
+    else:
+        print(f"Unknown action {action}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2))
+    if result.get("talk"):
+        print(f"\n💬 SAY: {result['talk']}")
+    if result.get("next_command") and not result.get("done"):
+        print(f"➡️  Next: PYTHONPATH=src python -m outreach_engine.cli {result['next_command']}")
+    return 0 if result.get("ok", True) and not result.get("error") else 1
+
+
+def cmd_agent_demo(args: argparse.Namespace) -> int:
+    """REAL engine run mirrored to Discord — what Banda should see as 'working model'."""
+    from .agent_demo import AgentDemo
+
+    demo = AgentDemo(live=not args.dry_run)
+    if not demo.notifier.diagnose()["discord"]["ready"] and not args.dry_run:
+        print("Discord not configured.", file=sys.stderr)
+        return 2
+    action = args.action
+    if action == "start":
+        print(
+            "\n══════════════════════════════════════════════\n"
+            "  REAL ENGINE DEMO (not slideshow)\n"
+            "  Screen-share: #outreach-handoffs\n"
+            "  Advance: agent-demo next  (when done talking)\n"
+            "══════════════════════════════════════════════\n"
+        )
+        result = demo.start()
+    elif action == "next":
+        result = demo.next()
+    elif action == "status":
+        result = demo.status()
+    elif action == "reset":
+        result = demo.reset()
+    elif action == "auto":
+        result = demo.run_auto(pace=float(args.pace))
+    else:
+        print(f"Unknown action {action}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2, default=str))
+    if isinstance(result, dict) and result.get("talk"):
+        print(f"\n💬 SAY: {result['talk']}")
+    if isinstance(result, dict) and result.get("next_command") and not result.get("done"):
+        print(
+            f"➡️  Next: PYTHONPATH=src python -m outreach_engine.cli {result['next_command']}"
+        )
+    return 0 if (not isinstance(result, dict)) or result.get("ok", True) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="outreach_engine",
@@ -377,7 +444,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser(
         "live",
-        help="WORKING MODEL screen-share: live activity stream in Discord (not slides)",
+        help="WORKING MODEL screen-share: auto-paced activity stream (fast)",
     )
     sp.add_argument(
         "--dry-run",
@@ -391,6 +458,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Seconds between live events (default 2.5; use 3.5 if talking)",
     )
     sp.set_defaults(func=cmd_live)
+
+    sp = sub.add_parser(
+        "step",
+        help="Interactive cards: step start, then step next when YOU are ready",
+    )
+    sp.add_argument(
+        "action",
+        choices=["start", "next", "status", "reset"],
+        help="start | next | status | reset",
+    )
+    sp.add_argument("--dry-run", action="store_true")
+    sp.set_defaults(func=cmd_step)
+
+    sp = sub.add_parser(
+        "agent-demo",
+        help="REAL engine demo in Discord: agent-demo start / next (Banda working model)",
+    )
+    sp.add_argument(
+        "action",
+        choices=["start", "next", "status", "reset", "auto"],
+        help="start | next | status | reset | auto",
+    )
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--pace", type=float, default=3.0, help="Only for auto mode")
+    sp.set_defaults(func=cmd_agent_demo)
 
     return p
 
