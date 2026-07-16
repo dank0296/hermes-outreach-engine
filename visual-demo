@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# WHERE: Hermes container — visual Hermes agent demo (watch tools run)
+set -e
+cd /opt/data/repos/hermes-outreach-engine
+export PYTHONPATH=src
+# default pace 5s so Banda can follow
+PACE="${1:-5}"
+exec python -m outreach_engine.cli visual --pace "$PACE"

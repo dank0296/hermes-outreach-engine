@@ -372,6 +372,28 @@ def cmd_agent_demo(args: argparse.Namespace) -> int:
     return 0 if (not isinstance(result, dict)) or result.get("ok", True) else 1
 
 
+def cmd_visual(args: argparse.Namespace) -> int:
+    """Watch Hermes Agent visually execute tools (screen-share for Banda)."""
+    from .visual_agent import VisualAgentDemo
+
+    print(
+        "\n══════════════════════════════════════════════\n"
+        "  VISUAL HERMES AGENT DEMO\n"
+        "  Screen-share: Discord #outreach-handoffs\n"
+        "  You watch — agent thinks + calls tools\n"
+        f"  pace={args.pace}s · live={not args.dry_run}\n"
+        "══════════════════════════════════════════════\n"
+    )
+    demo = VisualAgentDemo(live=not args.dry_run)
+    if not demo.notifier.diagnose()["discord"]["ready"] and not args.dry_run:
+        print("Discord not configured.", file=sys.stderr)
+        return 2
+    result = demo.run(pace=float(args.pace))
+    print(json.dumps(result, indent=2))
+    print("\n✅ Visual agent run finished. Scroll #outreach-handoffs.")
+    return 0 if result.get("ok") else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="outreach_engine",
@@ -483,6 +505,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--pace", type=float, default=3.0, help="Only for auto mode")
     sp.set_defaults(func=cmd_agent_demo)
+
+    sp = sub.add_parser(
+        "visual",
+        help="VISUAL Hermes agent: watch think/tool/result stream in Discord (screen-share)",
+    )
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument(
+        "--pace",
+        type=float,
+        default=4.0,
+        help="Seconds between agent actions (default 4; use 5–6 if narrating)",
+    )
+    sp.set_defaults(func=cmd_visual)
 
     return p
 

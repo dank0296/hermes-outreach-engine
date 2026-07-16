@@ -1,69 +1,50 @@
-# BANDA DEMO — PIN THIS
+# BANDA MEETING — PIN THIS
 
-**WHERE:** Hermes container terminal (`root@05c6bc…`)  
+**WHERE:** Hermes container terminal  
 **SHOW:** Discord `#outreach-handoffs` (screen share)  
-**VOICE:** Talk to Banda on Discord VC only — voice does NOT advance the demo
+**VOICE:** Talk to Banda — does **not** run the agent  
+
+**Pre-brief for Banda:** `docs/BANDA-PRE-MEETING-BRIEF.md`  
+(Share before meeting — he picks option 1 / 2 / 3)
 
 ---
 
-## START (once)
+## MEETING FLOW
 
+### Part A — Explain (YOU pace) · ~8–12 min · skippable
 ```bash
 cd /opt/data/repos/hermes-outreach-engine
 PYTHONPATH=src python -m outreach_engine.cli agent-demo reset
 PYTHONPATH=src python -m outreach_engine.cli agent-demo start
-```
-
----
-
-## EVERY SECTION AFTER THAT
-
-```bash
 ./next
+# talk → ./next → talk → ./next … until done
 ```
 
-Talk → `./next` → Talk → `./next` → … until **done**
-
----
-
-## DO / DON’T
-
-| Do | Don’t |
-|----|--------|
-| Type `./next` in **terminal** | Type only `agent-demo next` (bash won’t know it) |
-| **Say** the `💬 SAY:` line out loud to Banda | Type the SAY line into the terminal |
-| Screen-share Discord channel | Screen-share secrets / whole messy desktop |
-| Pause hard on **HANDOFF** | Rush past the handoff card |
-
----
-
-## MEETING ORDER
-
-1. Join **Voice** with Banda  
-2. **Screen share** Discord → `#outreach-handoffs`  
-3. Say: *“Let’s run a live working model.”*  
-4. Run **START** block above  
-5. Talk using `💬 SAY` hints  
-6. `./next` when ready for next beat  
-7. On **🚨 HANDOFF** — big pause  
-8. Ask: pilot dry-run vs live next? → **stop talking**
-
----
-
-## IF STUCK
-
+### Part B — Visual Hermes agent (HE watches) · ~6–10 min ⭐
 ```bash
 cd /opt/data/repos/hermes-outreach-engine
-PYTHONPATH=src python -m outreach_engine.cli agent-demo status
-# restart clean:
-PYTHONPATH=src python -m outreach_engine.cli agent-demo reset
-PYTHONPATH=src python -m outreach_engine.cli agent-demo start
+./visual-demo
+# slower: ./visual-demo 6
 ```
+
+No `./next` — agent streams think → tool → result by itself.
 
 ---
 
-## ONE-LINER THESIS
+## ORDER
 
-> 24/7 cold outreach. You only get pinged when a lead is worth it.
+| If Banda chose… | You run |
+|-----------------|---------|
+| **1 Full** | Part A → then Part B |
+| **2 Visual first** | Part B first → explain only if asked |
+| **3 Visual only** | Part B → thesis → ask |
 
-Outbound = dry-run (safe). Discord feed = live.
+**Always:** big pause on HANDOFF → ask pilot vs live → **stop talking**
+
+---
+
+## Thesis
+
+> Hermes works cold 24/7. You only get pinged when a lead is worth it.
+
+Outbound = dry-run. Discord = live. No Kasm required for this meeting.
