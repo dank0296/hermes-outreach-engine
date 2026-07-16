@@ -11,12 +11,13 @@
 
 ## Purpose
 
-Show a **working model** of an AI outreach engine built for a **crypto trading Discord** business:
+Show a **working model** of an AI outreach engine (and the broader agent + seat business).
 
-- Works cold leads multi-channel (email / SMS / call scripts) **without babysitting**
-- **Scores** intent (pricing, demo, call interest)
-- **Only pings you** when a lead is worth taking over
-- Safe demo mode: **outbound is dry-run** (nothing actually sent to real people)
+Banda may engage as:
+- **Operator / customer** (run it for a Discord business), and/or  
+- **Investor / backer** (capital to scale product + content + seats)
+
+Demo first. Path (customer / capital / both) after he’s seen it work.
 
 This is **not** a trading-signal bot and **not** a promise of members or ROI.
 
@@ -84,7 +85,10 @@ Reply with **1**, **2**, or **3** (or “full” / “visual first” / “visua
 
 1. Does **criteria-first** match how you want to spend time?  
 2. Pilot on **dry-run** with your ICP, or path to live channels after list consent?  
-3. Rough fit: Pilot / Operator / Full build  
+3. Rough fit: Pilot / Operator seat / Managed build  
+
+**Commercial stance (internal — do not overshare IP):**  
+This stack is a **Dank product** we sell (hosted/operator), not a free white-label for resale to every Discord operator in a network. Demo proves value; next step is **pilot terms**, not full source dump.
 
 No pressure to decide live.
 
