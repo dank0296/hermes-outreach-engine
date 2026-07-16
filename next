@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# WHERE: Hermes container — advance agent-demo one step
+set -e
+cd /opt/data/repos/hermes-outreach-engine
+export PYTHONPATH=src
+exec python -m outreach_engine.cli agent-demo next "$@"
